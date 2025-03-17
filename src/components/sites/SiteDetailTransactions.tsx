@@ -534,21 +534,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     }
     
     try {
-      // Store supervisor or subcontractor id in notes or metadata if needed
-      let recipientDetails = '';
-      if (recipientType === RecipientType.SUPERVISOR) {
-        const supervisorId = supervisors.find(s => s.name === recipientName)?.id;
-        if (supervisorId) {
-          recipientDetails = `Supervisor ID: ${supervisorId}`;
-        }
-      } else if (recipientType === RecipientType.SUBCONTRACTOR) {
-        const subcontractorId = subcontractors.find(s => s.name === recipientName)?.id;
-        if (subcontractorId) {
-          recipientDetails = `Subcontractor ID: ${subcontractorId}`;
-        }
-      }
-      
-      // Prepare the data for insertion - remove recipient_id field
+      // Prepare the data for insertion - include only fields that exist in your database
       const advanceData = {
         date: advanceDate.toISOString(),
         recipient_type: recipientType,
@@ -557,8 +543,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
         amount: advanceAmount,
         status: ApprovalStatus.PENDING, // Default status
         created_by: user?.id,
-        site_id: site.id,
-        notes: recipientDetails || undefined // Store ID information in notes field if available
+        site_id: site.id
       };
       
       console.log('Submitting advance data:', advanceData);
@@ -572,7 +557,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
         console.error('Error creating advance:', error);
         toast({
           title: "Advance Creation Failed",
-          description: error.message,
+          description: `${error.message} - Please check console for details`,
           variant: "destructive"
         });
         return;
@@ -586,8 +571,6 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       setIsCreateAdvanceDialogOpen(false);
       resetAdvanceForm();
       
-      // Refresh the advances list (in a real implementation, you'd update your state)
-      // This would typically call a function to refresh the advances list
     } catch (error) {
       console.error('Error:', error);
       toast({
