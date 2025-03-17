@@ -172,26 +172,148 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     };
   }, [site.id, activeTab]);
 
-  // Handle tab loading states
+  // Load expenses when on expenses tab
   useEffect(() => {
-    const handleTabChange = () => {
-      if (activeTab === 'expenses') {
-        setIsExpensesLoading(true);
-        // Simulate loading - in real app, you'd load data here
-        setTimeout(() => setIsExpensesLoading(false), 500);
-      } else if (activeTab === 'advances') {
-        setIsAdvancesLoading(true);
-        // Simulate loading - in real app, you'd load data here
-        setTimeout(() => setIsAdvancesLoading(false), 500);
-      } else if (activeTab === 'funds') {
-        setIsFundsLoading(true);
-        // Simulate loading - in real app, you'd load data here
-        setTimeout(() => setIsFundsLoading(false), 500);
+    const loadExpenses = async () => {
+      if (activeTab !== 'expenses') return;
+      
+      setIsExpensesLoading(true);
+      try {
+        const { data: expensesData, error: expensesError } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('site_id', site.id);
+          
+        if (expensesError) throw expensesError;
+        
+        if (expensesData) {
+          const transformedExpenses: Expense[] = expensesData.map(expense => ({
+            id: expense.id,
+            date: new Date(expense.date),
+            description: expense.description,
+            category: expense.category,
+            amount: Number(expense.amount),
+            status: expense.status,
+            createdBy: expense.created_by,
+            createdAt: new Date(expense.created_at),
+            siteId: expense.site_id
+          }));
+          
+          setExpenses(transformedExpenses);
+        } else {
+          setExpenses([]);
+        }
+      } catch (error) {
+        console.error('Error loading expenses:', error);
+        toast({
+          title: "Failed to load expenses",
+          description: "There was an error loading the site expenses.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsExpensesLoading(false);
       }
     };
     
-    handleTabChange();
-  }, [activeTab]);
+    if (activeTab === 'expenses') {
+      loadExpenses();
+    }
+  }, [site.id, activeTab]);
+
+  // Load advances when on advances tab
+  useEffect(() => {
+    const loadAdvances = async () => {
+      if (activeTab !== 'advances') return;
+      
+      setIsAdvancesLoading(true);
+      try {
+        const { data: advancesData, error: advancesError } = await supabase
+          .from('advances')
+          .select('*')
+          .eq('site_id', site.id);
+          
+        if (advancesError) throw advancesError;
+        
+        if (advancesData) {
+          const transformedAdvances: Advance[] = advancesData.map(advance => ({
+            id: advance.id,
+            date: new Date(advance.date),
+            recipientName: advance.recipient_name,
+            recipientType: advance.recipient_type,
+            purpose: advance.purpose,
+            amount: Number(advance.amount),
+            status: advance.status,
+            createdBy: advance.created_by,
+            createdAt: new Date(advance.created_at),
+            siteId: advance.site_id
+          }));
+          
+          setAdvances(transformedAdvances);
+        } else {
+          setAdvances([]);
+        }
+      } catch (error) {
+        console.error('Error loading advances:', error);
+        toast({
+          title: "Failed to load advances",
+          description: "There was an error loading the site advances.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsAdvancesLoading(false);
+      }
+    };
+    
+    if (activeTab === 'advances') {
+      loadAdvances();
+    }
+  }, [site.id, activeTab]);
+
+  // Load funds when on funds tab
+  useEffect(() => {
+    const loadFunds = async () => {
+      if (activeTab !== 'funds') return;
+      
+      setIsFundsLoading(true);
+      try {
+        const { data: fundsData, error: fundsError } = await supabase
+          .from('funds_received')
+          .select('*')
+          .eq('site_id', site.id);
+          
+        if (fundsError) throw fundsError;
+        
+        if (fundsData) {
+          const transformedFunds: FundsReceived[] = fundsData.map(fund => ({
+            id: fund.id,
+            date: new Date(fund.date),
+            amount: Number(fund.amount),
+            method: fund.method,
+            reference: fund.reference,
+            createdAt: new Date(fund.created_at),
+            siteId: fund.site_id
+          }));
+          
+          setFundsReceived(transformedFunds);
+        } else {
+          setFundsReceived([]);
+        }
+      } catch (error) {
+        console.error('Error loading funds:', error);
+        toast({
+          title: "Failed to load funds",
+          description: "There was an error loading the site funds.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsFundsLoading(false);
+      }
+    };
+    
+    if (activeTab === 'funds') {
+      loadFunds();
+    }
+  }, [site.id, activeTab]);
 
   const filteredInvoices = invoices.filter(invoice => 
     invoice.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -417,15 +539,159 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     setIsDeleteExpenseConfirmOpen(true);
   };
   
-  const handleCreateExpense = async (expense: Partial<Expense>) => {
-    // Implementation for creating expense in Supabase
-    toast({
-      title: "Expense Created",
-      description: "The expense has been created successfully.",
-    });
-    setIsCreateExpenseDialogOpen(false);
+  const [expenseDate, setExpenseDate] = useState<Date | null>(null);
+  const [expenseCategory, setExpenseCategory] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState<number>(0);
+
+  // Funds form state
+  const [fundsDate, setFundsDate] = useState<Date | null>(null);
+  const [fundsMethod, setFundsMethod] = useState('');
+  const [fundsAmount, setFundsAmount] = useState<number>(0);
+  const [fundsReference, setFundsReference] = useState('');
+
+  // Reset expense form
+  const resetExpenseForm = () => {
+    setExpenseDate(null);
+    setExpenseCategory('');
+    setExpenseDescription('');
+    setExpenseAmount(0);
   };
-  
+
+  // Reset funds form
+  const resetFundsForm = () => {
+    setFundsDate(null);
+    setFundsMethod('');
+    setFundsAmount(0);
+    setFundsReference('');
+  };
+
+  const handleCreateExpense = async () => {
+    if (!expenseDate) {
+      toast({
+        title: "Missing Date",
+        description: "Please select a date for the expense",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!expenseCategory) {
+      toast({
+        title: "Missing Category",
+        description: "Please select a category",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!expenseDescription) {
+      toast({
+        title: "Missing Description",
+        description: "Please enter a description",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!expenseAmount || expenseAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount greater than 0",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const expenseData = {
+        date: expenseDate.toISOString(),
+        category: expenseCategory,
+        description: expenseDescription,
+        amount: expenseAmount,
+        status: ApprovalStatus.PENDING, // Default status
+        created_by: user?.id,
+        site_id: site.id
+      };
+      
+      console.log('Submitting expense data:', expenseData);
+      
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert(expenseData)
+        .select();
+        
+      if (error) {
+        console.error('Error creating expense:', error);
+        toast({
+          title: "Expense Creation Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log('Expense created successfully:', data);
+      
+      toast({
+        title: "Expense Created",
+        description: "The expense has been created successfully.",
+      });
+      
+      // Reload expenses data
+      setActiveTab('expenses');
+      
+      setIsCreateExpenseDialogOpen(false);
+      resetExpenseForm();
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create expense. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteExpense = async () => {
+    if (!selectedExpense) return;
+    
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', selectedExpense.id);
+        
+      if (error) {
+        console.error('Error deleting expense:', error);
+        toast({
+          title: "Expense Deletion Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Expense Deleted",
+        description: "The expense has been deleted successfully.",
+      });
+      
+      setIsDeleteExpenseConfirmOpen(false);
+      setSelectedExpense(null);
+      
+      // Reload expenses data
+      setActiveTab('expenses');
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete expense. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Advance form state
   const [advanceDate, setAdvanceDate] = useState<Date | null>(null);
   const [recipientType, setRecipientType] = useState<RecipientType>(RecipientType.WORKER);
@@ -625,13 +891,71 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     setIsDeleteFundsConfirmOpen(true);
   };
   
-  const handleCreateFunds = async (funds: Partial<FundsReceived>) => {
-    // Implementation for creating funds in Supabase
-    toast({
-      title: "Funds Added",
-      description: "The funds have been added successfully.",
-    });
-    setIsCreateFundsDialogOpen(false);
+  const handleCreateFunds = async () => {
+    if (!fundsDate) {
+      toast({
+        title: "Missing Date",
+        description: "Please select a date",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!fundsAmount || fundsAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount greater than 0",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const fundsData = {
+        date: fundsDate.toISOString(),
+        amount: fundsAmount,
+        method: fundsMethod || null,
+        reference: fundsReference || null,
+        site_id: site.id
+      };
+      
+      console.log('Submitting funds data:', fundsData);
+      
+      const { data, error } = await supabase
+        .from('funds_received')
+        .insert(fundsData)
+        .select();
+        
+      if (error) {
+        console.error('Error creating funds:', error);
+        toast({
+          title: "Funds Creation Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log('Funds created successfully:', data);
+      
+      toast({
+        title: "Funds Added",
+        description: "The funds have been added successfully.",
+      });
+      
+      // Reload funds data
+      setActiveTab('funds');
+      
+      setIsCreateFundsDialogOpen(false);
+      resetFundsForm();
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add funds. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Advance handlers
@@ -653,6 +977,13 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     setSelectedAdvance(advance);
     setIsDeleteAdvanceConfirmOpen(true);
   };
+
+  // Replace handleTabChange with the new useEffect hooks for each tab
+  // Remove the handleTabChange effect that just simulated loading
+  useEffect(() => {
+    // This effect just updates the active tab state without loading logic
+    // All the actual data loading is handled in the tab-specific effects
+  }, [activeTab]);
 
   return (
     <div className="space-y-6">
@@ -1118,6 +1449,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                   type="date" 
                   id="date" 
                   className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onChange={(e) => setExpenseDate(e.target.value ? new Date(e.target.value) : null)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -1125,6 +1457,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 <select 
                   id="category" 
                   className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={expenseCategory}
+                  onChange={(e) => setExpenseCategory(e.target.value)}
                 >
                   <option value="">Select category</option>
                   <option value="materials">Materials</option>
@@ -1142,6 +1476,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 rows={3}
                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Enter expense description..."
+                value={expenseDescription}
+                onChange={(e) => setExpenseDescription(e.target.value)}
               ></textarea>
             </div>
             <div className="flex flex-col gap-2">
@@ -1153,12 +1489,17 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 placeholder="0.00"
                 min="0"
                 step="0.01"
+                value={expenseAmount || ''}
+                onChange={(e) => setExpenseAmount(parseFloat(e.target.value) || 0)}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateExpenseDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => handleCreateExpense({})}>Add Expense</Button>
+            <Button variant="outline" onClick={() => {
+              setIsCreateExpenseDialogOpen(false);
+              resetExpenseForm();
+            }}>Cancel</Button>
+            <Button onClick={handleCreateExpense}>Add Expense</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1173,7 +1514,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteExpense} className="bg-red-600 text-white hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1367,7 +1708,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteAdvance} className="bg-red-600 text-white hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1386,6 +1727,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                   type="date" 
                   id="fundsDate" 
                   className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  onChange={(e) => setFundsDate(e.target.value ? new Date(e.target.value) : null)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -1393,6 +1735,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 <select 
                   id="method" 
                   className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  value={fundsMethod}
+                  onChange={(e) => setFundsMethod(e.target.value)}
                 >
                   <option value="">Select method</option>
                   <option value="bank_transfer">Bank Transfer</option>
@@ -1411,6 +1755,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 placeholder="0.00"
                 min="0"
                 step="0.01"
+                value={fundsAmount || ''}
+                onChange={(e) => setFundsAmount(parseFloat(e.target.value) || 0)}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -1420,12 +1766,17 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 id="reference" 
                 className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder="Enter transaction reference"
+                value={fundsReference}
+                onChange={(e) => setFundsReference(e.target.value)}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateFundsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => handleCreateFunds({})}>Add Funds</Button>
+            <Button variant="outline" onClick={() => {
+              setIsCreateFundsDialogOpen(false);
+              resetFundsForm();
+            }}>Cancel</Button>
+            <Button onClick={handleCreateFunds}>Add Funds</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1440,7 +1791,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700">
+            <AlertDialogAction onClick={handleDeleteFunds} className="bg-red-600 text-white hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
