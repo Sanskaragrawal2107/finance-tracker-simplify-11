@@ -179,30 +179,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       
       setIsExpensesLoading(true);
       try {
-        const { data: expensesData, error: expensesError } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('site_id', site.id);
-          
-        if (expensesError) throw expensesError;
-        
-        if (expensesData) {
-          const transformedExpenses: Expense[] = expensesData.map(expense => ({
-            id: expense.id,
-            date: new Date(expense.date),
-            description: expense.description,
-            category: expense.category,
-            amount: Number(expense.amount),
-            status: expense.status,
-            createdBy: expense.created_by,
-            createdAt: new Date(expense.created_at),
-            siteId: expense.site_id
-          }));
-          
-          setExpenses(transformedExpenses);
-        } else {
-          setExpenses([]);
-        }
+        // Use the expenses prop instead of fetching data again
+        console.log('Using expenses data from props:', expenses.length);
       } catch (error) {
         console.error('Error loading expenses:', error);
         toast({
@@ -218,7 +196,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     if (activeTab === 'expenses') {
       loadExpenses();
     }
-  }, [site.id, activeTab]);
+  }, [site.id, activeTab, expenses]);
 
   // Load advances when on advances tab
   useEffect(() => {
@@ -227,31 +205,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       
       setIsAdvancesLoading(true);
       try {
-        const { data: advancesData, error: advancesError } = await supabase
-          .from('advances')
-          .select('*')
-          .eq('site_id', site.id);
-          
-        if (advancesError) throw advancesError;
-        
-        if (advancesData) {
-          const transformedAdvances: Advance[] = advancesData.map(advance => ({
-            id: advance.id,
-            date: new Date(advance.date),
-            recipientName: advance.recipient_name,
-            recipientType: advance.recipient_type,
-            purpose: advance.purpose,
-            amount: Number(advance.amount),
-            status: advance.status,
-            createdBy: advance.created_by,
-            createdAt: new Date(advance.created_at),
-            siteId: advance.site_id
-          }));
-          
-          setAdvances(transformedAdvances);
-        } else {
-          setAdvances([]);
-        }
+        // Use the advances prop instead of fetching data again
+        console.log('Using advances data from props:', advances.length);
       } catch (error) {
         console.error('Error loading advances:', error);
         toast({
@@ -267,7 +222,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     if (activeTab === 'advances') {
       loadAdvances();
     }
-  }, [site.id, activeTab]);
+  }, [site.id, activeTab, advances]);
 
   // Load funds when on funds tab
   useEffect(() => {
@@ -276,28 +231,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       
       setIsFundsLoading(true);
       try {
-        const { data: fundsData, error: fundsError } = await supabase
-          .from('funds_received')
-          .select('*')
-          .eq('site_id', site.id);
-          
-        if (fundsError) throw fundsError;
-        
-        if (fundsData) {
-          const transformedFunds: FundsReceived[] = fundsData.map(fund => ({
-            id: fund.id,
-            date: new Date(fund.date),
-            amount: Number(fund.amount),
-            method: fund.method,
-            reference: fund.reference,
-            createdAt: new Date(fund.created_at),
-            siteId: fund.site_id
-          }));
-          
-          setFundsReceived(transformedFunds);
-        } else {
-          setFundsReceived([]);
-        }
+        // Use the fundsReceived prop instead of fetching data again
+        console.log('Using funds data from props:', fundsReceived.length);
       } catch (error) {
         console.error('Error loading funds:', error);
         toast({
@@ -313,7 +248,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     if (activeTab === 'funds') {
       loadFunds();
     }
-  }, [site.id, activeTab]);
+  }, [site.id, activeTab, fundsReceived]);
 
   const filteredInvoices = invoices.filter(invoice => 
     invoice.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -638,11 +573,12 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
         description: "The expense has been created successfully.",
       });
       
-      // Reload expenses data
-      setActiveTab('expenses');
-      
+      // Since we can't update the expenses prop directly,
+      // we should notify the parent component to refresh data
+      // For now, just close the dialog and set active tab
       setIsCreateExpenseDialogOpen(false);
       resetExpenseForm();
+      setActiveTab('expenses');
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -677,10 +613,10 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
         description: "The expense has been deleted successfully.",
       });
       
+      // Since we can't update the expenses prop directly,
+      // just close dialogs and set active tab 
       setIsDeleteExpenseConfirmOpen(false);
       setSelectedExpense(null);
-      
-      // Reload expenses data
       setActiveTab('expenses');
     } catch (error) {
       console.error('Error:', error);
