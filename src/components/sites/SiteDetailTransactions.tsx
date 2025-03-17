@@ -437,12 +437,14 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
   const [supervisors, setSupervisors] = useState<Array<{id: string, name: string}>>([]);
   const [subcontractors, setSubcontractors] = useState<Array<{id: string, name: string}>>([]);
   const [purposes, setPurposes] = useState([
-    'Salary Advance',
-    'Material Purchase',
-    'Equipment Rental',
-    'Travel Expense',
-    'Miscellaneous'
+    'safety shoes',
+    'advance',
+    'tools',
+    'others'
   ]);
+  
+  // Additional state for "other" purpose
+  const [otherPurpose, setOtherPurpose] = useState('');
   
   // Fetch supervisors and subcontractors
   useEffect(() => {
@@ -492,6 +494,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     setRecipientType(RecipientType.WORKER);
     setRecipientName('');
     setAdvancePurpose('');
+    setOtherPurpose('');
     setAdvanceAmount(0);
   };
   
@@ -524,6 +527,15 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       return;
     }
     
+    if (advancePurpose === 'others' && !otherPurpose) {
+      toast({
+        title: "Missing Other Purpose",
+        description: "Please specify the other purpose",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!advanceAmount || advanceAmount <= 0) {
       toast({
         title: "Invalid Amount",
@@ -534,12 +546,15 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     }
     
     try {
+      // Determine the final purpose value
+      const finalPurpose = advancePurpose === 'others' ? otherPurpose : advancePurpose;
+      
       // Prepare the data for insertion - include only fields that exist in your database
       const advanceData = {
         date: advanceDate.toISOString(),
         recipient_type: recipientType,
         recipient_name: recipientName,
-        purpose: advancePurpose,
+        purpose: finalPurpose,
         amount: advanceAmount,
         status: ApprovalStatus.PENDING, // Default status
         created_by: user?.id,
@@ -548,13 +563,20 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       
       console.log('Submitting advance data:', advanceData);
       
+      // Try to insert the data
       const { data, error } = await supabase
         .from('advances')
         .insert(advanceData)
         .select();
         
       if (error) {
-        console.error('Error creating advance:', error);
+        // Log the full error object to inspect its structure
+        console.error('Error creating advance (full error):', error);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        console.error('Error hint:', error.hint);
+        console.error('Error code:', error.code);
+        
         toast({
           title: "Advance Creation Failed",
           description: `${error.message} - Please check console for details`,
@@ -562,6 +584,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
         });
         return;
       }
+      
+      console.log('Advance created successfully:', data);
       
       toast({
         title: "Advance Created",
@@ -572,7 +596,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       resetAdvanceForm();
       
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error during advance creation:', error);
       toast({
         title: "Error",
         description: "Failed to create advance. Please try again.",
@@ -1285,6 +1309,21 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
                 ))}
               </select>
             </div>
+            
+            {/* Conditional field for "other" purpose */}
+            {advancePurpose === 'others' && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="otherPurpose" className="text-sm font-medium">Specify Other Purpose</label>
+                <input 
+                  type="text" 
+                  id="otherPurpose" 
+                  className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  placeholder="Please specify the purpose"
+                  value={otherPurpose}
+                  onChange={(e) => setOtherPurpose(e.target.value)}
+                />
+              </div>
+            )}
             
             <div className="flex flex-col gap-2">
               <label htmlFor="advanceAmount" className="text-sm font-medium">Amount (₹)</label>
