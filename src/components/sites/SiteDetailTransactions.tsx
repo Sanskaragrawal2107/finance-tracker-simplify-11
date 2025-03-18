@@ -76,18 +76,27 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
 }) => {
   const { user } = useAuth();
   
-  // Comprehensive debug logging 
+  // CRITICAL: Early safety check to prevent blank page
+  if (!site) {
+    console.error("SiteDetailTransactions received null or undefined site");
+    return (
+      <div className="p-8 border rounded-md bg-red-50 text-red-800">
+        <h3 className="text-lg font-medium mb-2">Error Loading Transactions</h3>
+        <p>Site data is missing. Please try refreshing the page or contact support.</p>
+      </div>
+    );
+  }
+  
+  // More comprehensive debug logging 
   console.log('SiteDetailTransactions RENDER', { 
     site: site?.id,
     supervisor: supervisor?.id,
     userRole: user?.role,
     isAdminView,
     expensesLength: expenses?.length || 0,
-    expensesData: expenses,
-    advancesLength: advances?.length || 0,
-    advancesData: advances,
+    advancesLength: advances?.length || 0, 
     fundsLength: fundsReceived?.length || 0,
-    fundsData: fundsReceived
+    canEdit: user ? (user.role === UserRole.ADMIN || (user.role === UserRole.SUPERVISOR && site.supervisorId === user.id)) : false
   });
   
   const [activeTab, setActiveTab] = useState('invoices');
@@ -136,13 +145,13 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
   // Function to load invoices with real-time updates
   useEffect(() => {
     const loadInvoices = async () => {
-      if (activeTab !== 'invoices') return;
+      if (activeTab !== 'invoices' || !site?.id) return; // Safety check for site.id
       
       setIsInvoicesLoading(true);
       try {
         const siteInvoices = await fetchSiteInvoices(site.id);
-        console.log('Loaded invoices:', siteInvoices.length);
-        setInvoices(siteInvoices);
+        console.log('Loaded invoices:', siteInvoices?.length || 0);
+        setInvoices(siteInvoices || []);
       } catch (error) {
         console.error('Error loading invoices:', error);
         toast({
@@ -150,6 +159,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           description: "There was an error loading the site invoices.",
           variant: "destructive"
         });
+        // Set empty array on error to ensure we don't keep showing loading state
+        setInvoices([]);
       } finally {
         setIsInvoicesLoading(false);
       }
@@ -157,25 +168,33 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     
     loadInvoices();
 
-    // Subscribe to real-time updates for this site's invoices
-    const channel = supabase
-      .channel('public:site_invoices')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'site_invoices',
-        filter: `site_id=eq.${site.id}`
-      }, () => {
-        // Reload invoices when there's any change
-        loadInvoices();
-      })
-      .subscribe();
+    // Only set up subscription if site.id exists
+    if (!site?.id) return;
 
-    return () => {
-      // Unsubscribe when component unmounts
-      supabase.removeChannel(channel);
-    };
-  }, [site.id, activeTab]);
+    // Subscribe to real-time updates for this site's invoices
+    try {
+      const channel = supabase
+        .channel('public:site_invoices')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'site_invoices',
+          filter: `site_id=eq.${site.id}`
+        }, () => {
+          // Reload invoices when there's any change
+          loadInvoices();
+        })
+        .subscribe();
+
+      return () => {
+        // Unsubscribe when component unmounts
+        supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+      // Component can still function without real-time updates
+    }
+  }, [site?.id, activeTab]);
 
   // Handle tab changes
   useEffect(() => {
