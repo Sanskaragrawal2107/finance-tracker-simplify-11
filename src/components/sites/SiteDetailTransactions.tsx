@@ -76,14 +76,18 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
 }) => {
   const { user } = useAuth();
   
-  // Debug logs for transaction data
-  console.log('SiteDetailTransactions props:', { 
-    siteId: site.id,
-    expensesCount: expenses.length,
-    advancesCount: advances.length,
-    fundsReceivedCount: fundsReceived.length,
+  // Comprehensive debug logging 
+  console.log('SiteDetailTransactions RENDER', { 
+    site: site?.id,
+    supervisor: supervisor?.id,
     userRole: user?.role,
-    isAdminView
+    isAdminView,
+    expensesLength: expenses?.length || 0,
+    expensesData: expenses,
+    advancesLength: advances?.length || 0,
+    advancesData: advances,
+    fundsLength: fundsReceived?.length || 0,
+    fundsData: fundsReceived
   });
   
   const [activeTab, setActiveTab] = useState('invoices');
@@ -870,152 +874,121 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           <TabsTrigger value="funds">Funds Received</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="invoices" className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative max-w-md">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search invoices..." 
-                className="py-2 pl-10 pr-4 border rounded-md w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+        <TabsContent value="invoices">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search invoices..."
+                className="pl-8 h-10 w-full sm:w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Filter className="h-4 w-4" />
-                Filter
+            {canEdit && (
+              <Button size="sm" className="gap-1.5" onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New Invoice
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-              {canEdit && (
-                <Button size="sm" className="gap-1.5" onClick={() => setIsCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                  New Invoice
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-md border shadow-sm">
-            {isInvoicesLoading ? (
-              <div className="flex items-center justify-center p-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2">Loading invoices...</span>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b text-left">
-                        <th className="pb-3 pl-4 font-medium text-muted-foreground">Date</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Party Name</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Material</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Net Taxable Amount</th>
-                        <th className="pb-3 font-medium text-muted-foreground">GST</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Grand Net Total</th>
-                        <th className="pb-3 font-medium text-muted-foreground">Status</th>
-                        <th className="pb-3 pr-4 font-medium text-muted-foreground text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInvoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="py-8 text-center text-muted-foreground">
-                            No invoices found for this site
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredInvoices.map((invoice) => (
-                          <tr key={invoice.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                            <td className="py-4 pl-4 text-sm">{format(invoice.date, 'MMM dd, yyyy')}</td>
-                            <td className="py-4 text-sm">{invoice.partyName}</td>
-                            <td className="py-4 text-sm">{invoice.material}</td>
-                            <td className="py-4 text-sm">₹{invoice.grossAmount.toLocaleString()}</td>
-                            <td className="py-4 text-sm">{invoice.gstPercentage}%</td>
-                            <td className="py-4 text-sm font-medium">₹{invoice.netAmount.toLocaleString()}</td>
-                            <td className="py-4 text-sm">
-                              <span className={`${getStatusColor(invoice.paymentStatus)} px-2 py-1 rounded-full text-xs font-medium`}>
-                                {invoice.paymentStatus}
-                              </span>
-                            </td>
-                            <td className="py-4 text-right">
-                              <div className="flex justify-end">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewInvoice(invoice)}>
-                                  <Eye className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                                
-                                {canEdit && (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditInvoice(invoice)}>
-                                      <Edit className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                    {canDelete && (
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDeleteInvoice(invoice)}>
-                                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                      </Button>
-                                    )}
-                                  </>
-                                )}
-                                
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadInvoice(invoice)}>
-                                  <Download className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                                
-                                {invoice.paymentStatus === PaymentStatus.PENDING && canEdit && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8" 
-                                    onClick={() => handleViewInvoice(invoice)}
-                                  >
-                                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {filteredInvoices.length > 0 && (
-                  <div className="flex items-center justify-between mt-4 border-t pt-4 px-4 pb-2">
-                    <p className="text-sm text-muted-foreground">Showing 1-{filteredInvoices.length} of {filteredInvoices.length} entries</p>
-                    <div className="flex items-center space-x-2">
-                      <button className="p-1 rounded-md hover:bg-muted transition-colors" disabled>
-                        <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-                      </button>
-                      <button className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-sm">1</button>
-                      <button className="p-1 rounded-md hover:bg-muted transition-colors" disabled>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
             )}
           </div>
+          
+          {isInvoicesLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+              <span className="ml-2">Loading invoices...</span>
+            </div>
+          ) : filteredInvoices.length > 0 ? (
+            <div className="bg-white rounded-md border shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-3 pl-4 font-medium text-muted-foreground">Date</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Party Name</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Material</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Net Taxable Amount</th>
+                      <th className="pb-3 font-medium text-muted-foreground">GST</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Grand Net Total</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Status</th>
+                      <th className="pb-3 pr-4 font-medium text-muted-foreground text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredInvoices.map((invoice) => (
+                      <tr key={invoice.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                        <td className="py-4 pl-4 text-sm">{format(invoice.date, 'MMM dd, yyyy')}</td>
+                        <td className="py-4 text-sm">{invoice.partyName}</td>
+                        <td className="py-4 text-sm">{invoice.material}</td>
+                        <td className="py-4 text-sm">₹{invoice.grossAmount.toLocaleString()}</td>
+                        <td className="py-4 text-sm">{invoice.gstPercentage}%</td>
+                        <td className="py-4 text-sm font-medium">₹{invoice.netAmount.toLocaleString()}</td>
+                        <td className="py-4 text-sm">
+                          <span className={`${getStatusColor(invoice.paymentStatus)} px-2 py-1 rounded-full text-xs font-medium`}>
+                            {invoice.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex justify-end">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewInvoice(invoice)}>
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            
+                            {canEdit && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditInvoice(invoice)}>
+                                  <Edit className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                {canDelete && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDeleteInvoice(invoice)}>
+                                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                            
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadInvoice(invoice)}>
+                              <Download className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            
+                            {invoice.paymentStatus === PaymentStatus.PENDING && canEdit && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8" 
+                                onClick={() => handleViewInvoice(invoice)}
+                              >
+                                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-muted-foreground bg-white rounded-md border shadow-sm">
+              No invoices found for this site
+            </div>
+          )}
         </TabsContent>
         
-        <TabsContent value="expenses" className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative max-w-md">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search expenses..." 
-                className="py-2 pl-10 pr-4 border rounded-md w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+        <TabsContent value="expenses">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search expenses..."
+                className="pl-8 h-10 w-full sm:w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
             {canEdit && (
               <Button size="sm" className="gap-1.5" onClick={handleAddExpense}>
                 <Plus className="h-4 w-4" />
@@ -1025,8 +998,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </div>
           
           {isExpensesLoading ? (
-            <div className="flex items-center justify-center p-12 bg-white rounded-md border shadow-sm">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-48">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               <span className="ml-2">Loading expenses...</span>
             </div>
           ) : expenses.length === 0 ? (
@@ -1091,17 +1064,18 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           )}
         </TabsContent>
         
-        <TabsContent value="advances" className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative max-w-md">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search advances..." 
-                className="py-2 pl-10 pr-4 border rounded-md w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+        <TabsContent value="advances">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search advances..."
+                className="pl-8 h-10 w-full sm:w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
             {canEdit && (
               <Button size="sm" className="gap-1.5" onClick={() => setIsCreateAdvanceDialogOpen(true)}>
                 <Plus className="h-4 w-4" />
@@ -1111,8 +1085,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </div>
           
           {isAdvancesLoading ? (
-            <div className="flex items-center justify-center p-12 bg-white rounded-md border shadow-sm">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-48">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               <span className="ml-2">Loading advances...</span>
             </div>
           ) : advances.length === 0 ? (
@@ -1177,17 +1151,18 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           )}
         </TabsContent>
         
-        <TabsContent value="funds" className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative max-w-md">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search funds..." 
-                className="py-2 pl-10 pr-4 border rounded-md w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+        <TabsContent value="funds">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search funds..."
+                className="pl-8 h-10 w-full sm:w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
             {canEdit && (
               <Button size="sm" className="gap-1.5" onClick={handleAddFunds}>
                 <Plus className="h-4 w-4" />
@@ -1197,8 +1172,8 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
           </div>
           
           {isFundsLoading ? (
-            <div className="flex items-center justify-center p-12 bg-white rounded-md border shadow-sm">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-48">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               <span className="ml-2">Loading funds...</span>
             </div>
           ) : fundsReceived.length === 0 ? (
