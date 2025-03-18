@@ -137,6 +137,7 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
       setIsInvoicesLoading(true);
       try {
         const siteInvoices = await fetchSiteInvoices(site.id);
+        console.log('Loaded invoices:', siteInvoices.length);
         setInvoices(siteInvoices);
       } catch (error) {
         console.error('Error loading invoices:', error);
@@ -172,83 +173,28 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     };
   }, [site.id, activeTab]);
 
-  // Load expenses when on expenses tab
+  // Handle tab changes
   useEffect(() => {
-    const loadExpenses = async () => {
-      if (activeTab !== 'expenses') return;
-      
-      setIsExpensesLoading(true);
-      try {
-        // Use the expenses prop instead of fetching data again
-        console.log('Using expenses data from props:', expenses.length);
-      } catch (error) {
-        console.error('Error loading expenses:', error);
-        toast({
-          title: "Failed to load expenses",
-          description: "There was an error loading the site expenses.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsExpensesLoading(false);
-      }
-    };
-    
-    if (activeTab === 'expenses') {
-      loadExpenses();
-    }
-  }, [site.id, activeTab, expenses]);
+    // Reset loading states when tab changes
+    setIsInvoicesLoading(activeTab === 'invoices');
+    setIsExpensesLoading(activeTab === 'expenses');
+    setIsAdvancesLoading(activeTab === 'advances');
+    setIsFundsLoading(activeTab === 'funds');
 
-  // Load advances when on advances tab
-  useEffect(() => {
-    const loadAdvances = async () => {
-      if (activeTab !== 'advances') return;
-      
-      setIsAdvancesLoading(true);
-      try {
-        // Use the advances prop instead of fetching data again
-        console.log('Using advances data from props:', advances.length);
-      } catch (error) {
-        console.error('Error loading advances:', error);
-        toast({
-          title: "Failed to load advances",
-          description: "There was an error loading the site advances.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsAdvancesLoading(false);
-      }
-    };
-    
-    if (activeTab === 'advances') {
-      loadAdvances();
+    // Log the current tab and its data
+    console.log('Tab changed to:', activeTab);
+    switch (activeTab) {
+      case 'expenses':
+        console.log('Expenses data:', expenses.length);
+        break;
+      case 'advances':
+        console.log('Advances data:', advances.length);
+        break;
+      case 'funds':
+        console.log('Funds data:', fundsReceived.length);
+        break;
     }
-  }, [site.id, activeTab, advances]);
-
-  // Load funds when on funds tab
-  useEffect(() => {
-    const loadFunds = async () => {
-      if (activeTab !== 'funds') return;
-      
-      setIsFundsLoading(true);
-      try {
-        // Use the fundsReceived prop instead of fetching data again
-        console.log('Using funds data from props:', fundsReceived.length);
-      } catch (error) {
-        console.error('Error loading funds:', error);
-        toast({
-          title: "Failed to load funds",
-          description: "There was an error loading the site funds.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsFundsLoading(false);
-      }
-    };
-    
-    if (activeTab === 'funds') {
-      loadFunds();
-    }
-  }, [site.id, activeTab, fundsReceived]);
+  }, [activeTab, expenses.length, advances.length, fundsReceived.length]);
 
   const filteredInvoices = invoices.filter(invoice => 
     invoice.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -913,13 +859,6 @@ const SiteDetailTransactions: React.FC<SiteDetailTransactionsProps> = ({
     setSelectedAdvance(advance);
     setIsDeleteAdvanceConfirmOpen(true);
   };
-
-  // Replace handleTabChange with the new useEffect hooks for each tab
-  // Remove the handleTabChange effect that just simulated loading
-  useEffect(() => {
-    // This effect just updates the active tab state without loading logic
-    // All the actual data loading is handled in the tab-specific effects
-  }, [activeTab]);
 
   return (
     <div className="space-y-6">
